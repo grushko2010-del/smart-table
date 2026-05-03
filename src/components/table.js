@@ -1,57 +1,29 @@
-import { cloneTemplate } from '../lib/cloneTemplate.js';
-
-export function initTable(settings) {
-  const { container, rowTemplate, before, after } = settings;
-
-  const root = {
-    container,
-  };
-
-  root.before = before ?? [];
-  root.after = after ?? [];
-
   const updateTable = (data, state, action) => {
+    // 1. Очищаем только строки, оставляя before/after (шапку и пагинацию)
+    const rows = root.container.querySelectorAll('.table-row'); // Предположим, строки имеют класс .table-row
+    rows.forEach(r => r.remove());
+
+    // 2. Создаем строки
     const nextRows = data.map((item) => {
       const row = cloneTemplate(rowTemplate);
+      // Добавим класс для удобного удаления в будущем
+      row.container.classList.add('table-row'); 
 
       Object.keys(item).forEach((key) => {
         if (key in row.elements) {
           row.elements[key].textContent = item[key];
         }
       });
-
       return row.container;
     });
 
-    root.container.replaceChildren(
-      ...root.before.map((name) => root[name].container),
-      ...nextRows,
-      ...root.after.map((name) => root[name].container)
-    );
+    // 3. Вставляем строки перед 'after' блоками
+    const afterContainer = root.after.length > 0 ? root[root.after[0]].container : null;
+    nextRows.forEach(row => {
+      if (afterContainer) {
+        root.container.insertBefore(row, afterContainer);
+      } else {
+        root.container.append(row);
+      }
+    });
   };
-
-  root.before.reverse().forEach((subName) => {
-    root[subName] = cloneTemplate(subName);
-    root.container.prepend(root[subName].container);
-  });
-
-  root.after.forEach((subName) => {
-    root[subName] = cloneTemplate(subName);
-    root.container.append(root[subName].container);
-  });
-
-  root.container.addEventListener('change', () => {
-    settings.onAction();
-  });
-
-  root.container.addEventListener('reset', () => {
-    setTimeout(() => settings.onAction());
-  });
-
-  root.container.addEventListener('submit', (e) => {
-    e.preventDefault();
-    settings.onAction(e.submitter);
-  });
-
-  return updateTable;
-}
