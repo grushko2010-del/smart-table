@@ -1,53 +1,50 @@
-import { cloneTemplate } from '../lib/cloneTemplate.js';
+import {cloneTemplate} from "../lib/utils.js";
 
-export function initTable(settings) {
-  const { container, rowTemplate, before, after, onAction } = settings;
+/**
+ * Инициализирует таблицу и вызывает коллбэк при любых изменениях и нажатиях на кнопки
+ *
+ * @param {Object} settings
+ * @param {(action: HTMLButtonElement | undefined) => void} onAction
+ * @returns {{container: Node, elements: *, render: render}}
+ */
+export function initTable(settings, onAction) {
+    const {tableTemplate, rowTemplate, before, after} = settings;
+    const root = cloneTemplate(tableTemplate); //скопировали шаблон таблицы
 
-  const root = {
-    container,
-    before: before ?? [],
-    after: after ?? [],
-  };
-
-  const updateTable = (data, state, action) => {
-    const rows = root.container.querySelectorAll('.table-row');
-    rows.forEach(r => r.remove());
-
-    const nextRows = data.map((item) => {
-      const row = cloneTemplate(rowTemplate);
-      row.container.classList.add('table-row');
-
-      Object.keys(item).forEach((key) => {
-        if (row.elements[key]) {
-          row.elements[key].textContent = item[key];
-        }
-      });
-      return row.container;
+    before.reverse().forEach(subName => {
+        root[subName] = cloneTemplate(subName);
+        root.container.prepend(root[subName].container);
     });
 
-    const afterEl = root.after.length > 0 ? root[root.after[0]].container : null;
-    nextRows.forEach(row => {
-      if (afterEl) root.container.insertBefore(row, afterEl);
-      else root.container.append(row);
+    after.forEach(subName => { //добавляем пагинацию. Для каждогоэлемента из массива
+        root[subName] = cloneTemplate(subName); //клонируем шаблон с айдишником из массива
+        root.container.append(root[subName].container); //ставим элемент перед таблицей
     });
-  };
 
-  root.before.reverse().forEach((subName) => {
-    root[subName] = cloneTemplate(subName);
-    root.container.prepend(root[subName].container);
-  });
+    root.container.addEventListener("change", onAction);
+    root.container.addEventListener("reset", () => {
+        setTimeout(onAction);
+    });
+    root.container.addEventListener("submit", (e) => {
+        e.preventDefault();
+        onAction(e.submitter)
+    });
 
-  root.after.forEach((subName) => {
-    root[subName] = cloneTemplate(subName);
-    root.container.append(root[subName].container);
-  });
-
-  root.container.addEventListener('change', () => onAction());
-  root.container.addEventListener('reset', () => setTimeout(() => onAction()));
-  root.container.addEventListener('submit', (e) => {
-    e.preventDefault();
-    onAction(e.submitter);
-  });
-
-  return updateTable;
+    const render = (data) => { //получаем массив данных
+        const nextRows = data.map(item => { //создаем массив новых строк
+            const row = cloneTemplate(rowTemplate); // клонируем шаблон и делаем из него объек с элементом и списком data
+            Object.keys(item).forEach(key => { //перебираем ключи даты (то есть data)
+                if (row.elements[key]) { // если ключ есть в склонированном шаблоне
+                    if (row.elements[key].tagName === 'INPUT' || row.elements[key].tagName === 'SELECT') {
+                        row.elements[key].value = item[key];
+                    } else {
+                        row.elements[key].textContent = item[key];
+                    }
+                };
+            });
+            return row.container;
+        });
+        root.elements.rows.replaceChildren(...nextRows);
+    }
+    return {...root, render};
 }
