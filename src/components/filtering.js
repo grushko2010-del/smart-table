@@ -1,14 +1,49 @@
 import {createComparison, defaultRules} from "../lib/compare.js";
 
-// @todo: #4.3 — настроить компаратор
+const baseCompare = createComparison(defaultRules);
 
 export function initFiltering(elements, indexes) {
-    // @todo: #4.1 — заполнить выпадающие списки опциями
+    Object.keys(indexes).forEach((elementName) => {
+        elements[elementName].append(
+            ...Object.values(indexes[elementName]).map((name) => {
+                const droplistOption = document.createElement("option");
+                droplistOption.textContent = name;
+                droplistOption.value = name;
+                return droplistOption;
+            })
+        );
+    });
 
-    return (data, state, action) => {
-        // @todo: #4.2 — обработать очистку поля
-
-        // @todo: #4.5 — отфильтровать данные используя компаратор
-        return data;
+    return (data, state) => {
+        return data.filter(row => {
+            // Проверяем стандартные фильтры
+            const baseResult = baseCompare(row, state);
+            if (!baseResult) return false;
+            
+            const totalFrom = state.totalFrom;
+            const totalTo = state.totalTo;
+            
+            // Если оба поля пустые - пропускаем проверку
+            if ((!totalFrom || totalFrom === '') && (!totalTo || totalTo === '')) {
+                return true;
+            }
+            
+            const total = parseFloat(row.total);
+            if (isNaN(total)) return false;
+            
+            // Проверяем нижнюю границу
+            if (totalFrom && totalFrom !== '') {
+                const from = parseFloat(totalFrom);
+                if (!isNaN(from) && total < from) return false;
+            }
+            
+            // Проверяем верхнюю границу
+            if (totalTo && totalTo !== '') {
+                const to = parseFloat(totalTo);
+                if (!isNaN(to) && total > to) return false;
+            }
+            
+            return true;
+        });
     }
 }
