@@ -11,8 +11,7 @@ import { processFormData } from './lib/utils.js';
 
 const { data, indexes } = initData(sourceData);
 
-// Если в консоли будет ошибка "Template X not found", 
-// значит в index.html ID называется иначе. Поменяй его здесь.
+// Инициализируем шаблоны, опираясь на их ID в index.html
 const sampleTable = {
   container: cloneTemplate('table').container,
   pagination: cloneTemplate('pagination'),
@@ -42,6 +41,7 @@ function onAction(action) {
     sampleTable.header.elements.sortByDate,
     sampleTable.header.elements.sortByTotal,
   ])(result, state, action);
+  
   result = initPagination(sampleTable.pagination.elements, (el, page, isCurrent) => {
     const input = el.querySelector('input');
     const label = el.querySelector('span');
@@ -55,11 +55,16 @@ function onAction(action) {
 
 const tableUpdator = initTable({
   container: sampleTable.container,
-  rowTemplate: document.getElementById('rowTemplate'), // Прямой доступ к ID шаблона строки
+  rowTemplate: document.getElementById('row'), // Используем верный ID из index.html
   before: ['search', 'header', 'filter'],
   after: ['pagination'],
   onAction,
 });
 
 onAction();
-document.body.append(sampleTable.container);
+
+// Вставляем таблицу в div с id="app"
+const rootElement = document.getElementById('app');
+if (rootElement) {
+    rootElement.append(sampleTable.container);
+}
