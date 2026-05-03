@@ -1,0 +1,1 @@
+https://github.com/grushko2010-del/smart-table.git
